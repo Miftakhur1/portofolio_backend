@@ -1,21 +1,18 @@
-FROM php:8.2-apache
+FROM php:8.2-fpm-alpine
 
-# Enable Apache rewrite
-RUN a2enmod rewrite
-
-# Install system dependencies (WAJIB untuk intl & zip)
-RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    libicu-dev \
-    zip \
-    unzip \
+# Install system deps
+RUN apk add --no-cache \
+    bash \
     git \
-    curl
+    curl \
+    libpng-dev \
+    libzip-dev \
+    icu-dev \
+    oniguruma-dev \
+    zip \
+    unzip
 
-# Install PHP extensions (INTI MASALAH ADA DI SINI)
+# Install PHP extensions
 RUN docker-php-ext-install \
     pdo \
     pdo_mysql \
@@ -27,28 +24,15 @@ RUN docker-php-ext-install \
     intl \
     zip
 
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy project files
-COPY . .
-
-# Install Composer
+# Install composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install Laravel dependencies
+WORKDIR /var/www/html
+
+COPY . .
+
 RUN composer install --no-dev --optimize-autoloader
 
-# Permissions
-RUN chown -R www-data:www-data /var/www/html \
- && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Apache document root → public
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' \
-    /etc/apache2/sites-available/*.conf \
- && sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf
-
-EXPOSE 80
-
-CMD ["apache2-foreground"]
+CMD ["php-fpm"]
