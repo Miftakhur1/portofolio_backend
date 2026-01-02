@@ -1,42 +1,24 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-# Install system dependencies
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libzip-dev \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    curl
+    git unzip libzip-dev libpng-dev libonig-dev libxml2-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl
 
-# PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql zip
-
-# Enable Apache rewrite
-RUN a2enmod rewrite
-
-# Set document root to Laravel public
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-
-RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy project
 COPY . .
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer
 
 RUN composer install --no-dev --optimize-autoloader
 
-# Permission
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN php artisan key:generate || true
+RUN php artisan config:clear
+RUN php artisan route:clear
+RUN php artisan view:clear
 
-EXPOSE 80
-CMD ["apache2-foreground"]
+EXPOSE 8080
+
+CMD php artisan serve --host=0.0.0.0 --port=$PORT
 
