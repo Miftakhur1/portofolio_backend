@@ -1,36 +1,18 @@
 FROM php:8.2-cli
 
-# Install system dependencies
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y \
     libpng-dev \
-    libonig-dev \
-    libxml2-dev \
     libzip-dev \
-    libicu-dev \
-    zip unzip git curl \
-    && docker-php-ext-install \
-    pdo \
-    pdo_mysql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    intl \
-    zip
-
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-WORKDIR /var/www/html
+    unzip \
+    git \
+    && docker-php-ext-install pdo pdo_mysql
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
+RUN php artisan key:generate || true
 
-RUN chmod -R 777 storage bootstrap/cache
+EXPOSE 8080
 
-EXPOSE 8000
-
-CMD php -S 0.0.0.0:$PORT -t public
-
+CMD php -S 0.0.0.0:${PORT} -t public
